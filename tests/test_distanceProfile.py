@@ -59,7 +59,7 @@ class TestClass(object):
         mean = np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         std = np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
 
-        result, out = STOMPDistanceProfile(tsA,idx,m,tsB,dot_first,dp,mean,std)
+        result, _ = STOMPDistanceProfile(tsA,idx,m,tsB,dot_first,dp,mean,std)
 
         assert(np.round(result,3) == outcome).all()
 

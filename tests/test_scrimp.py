@@ -103,7 +103,6 @@ def test_next_subsequence():
     assert((scrimp.next_subsequence(ts, idx, m) == expected_subsequence))
 
 def test_calc_exclusion_start():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
     m = 4
     idx = 0
     exclusion_zone = scrimp.calc_exclusion_zone(m)
@@ -465,7 +464,7 @@ def test_calc_curdistance():
     # test index 2
     idx = 2
     profile_len = scrimp.calc_profile_len(len(ts), m)
-    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
+    _, n, meanx, sigmax = utils.preprocess_ts(ts, m)
     curlastz = np.zeros(profile_len)
     curlastz = scrimp.calc_curlastz(ts, m, n, idx, profile_len, curlastz)
 

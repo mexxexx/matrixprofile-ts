@@ -50,10 +50,8 @@ def next_subsequence(ts, idx, m):
 def calc_exclusion_start(idx, exclusion_zone):
     return int(np.max([0, idx - exclusion_zone]))
 
-
 def calc_exclusion_stop(idx, exclusion_zone, profile_len):
     return int(np.min([profile_len, idx + exclusion_zone]))
-
 
 def apply_exclusion_zone(idx, exclusion_zone, profile_len, distance_profile):
     exc_start = calc_exclusion_start(idx, exclusion_zone)
@@ -61,7 +59,6 @@ def apply_exclusion_zone(idx, exclusion_zone, profile_len, distance_profile):
     distance_profile[exc_start:exc_stop + 1] = np.inf
 
     return distance_profile
-
 
 def find_and_store_nn(iteration, idx, matrix_profile, mp_index, 
                       distance_profile):
@@ -80,10 +77,8 @@ def find_and_store_nn(iteration, idx, matrix_profile, mp_index,
 
     return (matrix_profile, mp_index, idx_nn)
 
-
 def calc_idx_diff(idx, idx_nn):
     return idx_nn - idx
-
 
 def calc_dotproduct_idx(dotproduct, m, mp, idx, sigmax, idx_nn, meanx):
     dotproduct[idx] = (m - mp[idx] ** 2 / 2) * \
@@ -91,11 +86,9 @@ def calc_dotproduct_idx(dotproduct, m, mp, idx, sigmax, idx_nn, meanx):
 
     return dotproduct
 
-
 def calc_end_idx(profile_len, idx, step_size, idx_diff):
     return np.min([profile_len - 1, idx + step_size - 1, 
                   profile_len - idx_diff - 1])
-
 
 def calc_dotproduct_end_idx(ts, dp, idx, m, endidx, idx_nn, idx_diff):
     tmp_a = ts[idx+m:endidx+m]
@@ -107,7 +100,6 @@ def calc_dotproduct_end_idx(ts, dp, idx, m, endidx, idx_nn, idx_diff):
     dp[idx+1:endidx+1] = dp[idx] + np.cumsum(tmp_f)
 
     return dp
-
 
 def calc_refine_distance_end_idx(refine_distance, dp, idx, endidx, meanx, 
                                  sigmax, idx_nn, idx_diff, m):
@@ -123,10 +115,8 @@ def calc_refine_distance_end_idx(refine_distance, dp, idx, endidx, meanx,
 
     return refine_distance
 
-
 def calc_begin_idx(idx, step_size, idx_diff):
     return np.max([0, idx - step_size + 1, 2 - idx_diff])
-
 
 def calc_dotproduct_begin_idx(ts, dp, beginidx, idx, idx_diff, m, 
                               idx_nn):
@@ -148,7 +138,6 @@ def calc_dotproduct_begin_idx(ts, dp, beginidx, idx, idx_diff, m,
 
     return dp
 
-
 def calc_refine_distance_begin_idx(refine_distance, dp, beginidx, idx, 
                                    idx_diff, idx_nn, sigmax, meanx, m):
     if not (beginidx < idx):
@@ -166,7 +155,6 @@ def calc_refine_distance_begin_idx(refine_distance, dp, beginidx, idx,
     refine_distance[beginidx:idx] = np.sqrt(np.abs(2 * tmp_h))
 
     return refine_distance
-
 
 def apply_update_positions(matrix_profile, mp_index, refine_distance, beginidx,
                            endidx, orig_index, idx_diff):
@@ -190,7 +178,6 @@ def apply_update_positions(matrix_profile, mp_index, refine_distance, beginidx,
 
     return (matrix_profile, mp_index)
 
-
 def calc_curlastz(ts, m, n, idx, profile_len, curlastz):
     curlastz[idx] = np.sum(ts[0:m] * ts[idx:idx+m])
 
@@ -204,7 +191,6 @@ def calc_curlastz(ts, m, n, idx, profile_len, curlastz):
 
     return curlastz
 
-
 def calc_curdistance(curlastz, meanx, sigmax, idx, profile_len, m, 
                      curdistance):
     tmp_a = curlastz[idx:profile_len+1]
@@ -217,7 +203,6 @@ def calc_curdistance(curlastz, meanx, sigmax, idx, profile_len, m,
     curdistance[idx:profile_len] = np.sqrt(np.abs(2 * tmp_g))
 
     return curdistance
-
 
 def time_is_exceeded(start_time, runtime):
     """Helper method to determine if the runtime has exceeded or not.
@@ -236,7 +221,6 @@ def time_is_exceeded(start_time, runtime):
         )
 
     return exceeded
-
 
 def scrimp_plus_plus(ts, m, step_size=0.25, runtime=None, random_state=None, noise_var=None):
     """SCRIMP++ is an anytime algorithm that computes the matrix profile for a 
@@ -333,6 +317,7 @@ def scrimp_plus_plus(ts, m, step_size=0.25, runtime=None, random_state=None, noi
         subsequence = next_subsequence(ts, idx, m)
         
         distance_profile = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax, noise_var)
+        distance_profile = np.sqrt(distance_profile)
         
         # apply exclusion zone
         distance_profile = apply_exclusion_zone(

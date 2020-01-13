@@ -64,7 +64,7 @@ def massDistanceProfile(tsA, idx, m, tsB = None, noise_var = None):
 
     query = tsA[idx:(idx+m)]
     n = len(tsB)
-    distanceProfile = np.real(np.sqrt(mass(query,tsB, noise_var).astype(complex)))
+    distanceProfile = np.real(np.sqrt(mass(query, tsB, noise_var).astype(complex)))
     if selfJoin:
         trivialMatchRange = (int(max(0,idx - np.round(m/2,0))),int(min(idx + np.round(m/2+1,0),n)))
         distanceProfile[trivialMatchRange[0]:trivialMatchRange[1]] = np.inf

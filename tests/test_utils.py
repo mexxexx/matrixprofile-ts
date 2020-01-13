@@ -99,7 +99,6 @@ class TestClass(object):
     def test_massStomp(self):
         query = np.array([2., 1.])
         ts = np.array([1., 2., 1.])
-        m = 2
         dot_first = np.array([5., 4.])
         dot_prev = np.array([5., 4.])
         index = 1
@@ -108,7 +107,7 @@ class TestClass(object):
 
         outcome = np.array([2.82842712, 0.])
 
-        mass, dot = massStomp(query, ts, dot_first, dot_prev, index, mean, std)
+        mass, _ = massStomp(query, ts, dot_first, dot_prev, index, mean, std)
 
         assert np.allclose(np.sqrt(mass), outcome)
 
@@ -149,7 +148,7 @@ class TestClass(object):
         ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
         m = 4
 
-        X, n, meanx, sigmax = preprocess_ts(ts, m)
+        _, n, meanx, sigmax = preprocess_ts(ts, m)
         assert(n == 8)
 
         expected_meanx = np.array([2.5, 3.5, 4.5, 5.5, 6.5])
@@ -158,8 +157,7 @@ class TestClass(object):
         expected_sigmax = np.array([1.118, 1.118, 1.118, 1.118, 1.118])
         assert(np.allclose(sigmax, expected_sigmax, 1e-02))
 
-    
-    def test_calc_distance_profile(test):
+    def test_massPreprocessed(self):
         ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
         m = 4
         idx = 0

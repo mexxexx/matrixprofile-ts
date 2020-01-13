@@ -105,7 +105,7 @@ def preprocess_ts(ts, m):
     """
 
     n = len(ts)
-    X = np.fft.fft(ts)
+    X = np.fft.rfft(ts)
 
     meanx = np_rolling(ts, m, np.mean)
     sigmax = np_rolling(ts, m, np.std)
@@ -197,7 +197,7 @@ def mass(query, ts, noise_var=None):
 
 def massPreprocessed(query, X, n, m, meanx, sigmax, noise_var=None):
     """ 
-    Returns the distance profile of a query within tsA against the time series tsB using the more efficient MASS comparison, where the time series is already transformed to FFT space.
+    Calculates Mueen's ultra-fast Algorithm for Similarity Search (MASS): a Euclidian distance similarity search algorithm, where the time series is already transformed to FFT space. Note that we are returning the square of MASS.
     
     Parameters
     ----------
@@ -220,9 +220,9 @@ def massPreprocessed(query, X, n, m, meanx, sigmax, noise_var=None):
     y = np.concatenate([y, np.zeros(n-m)])
 
     # main trick of getting dot product in O(n log n) time
-    Y = np.fft.fft(y)
+    Y = np.fft.rfft(y)
     Z = X * Y
-    z = np.fft.ifft(Z) # Z-normalize distances
+    z = np.fft.irfft(Z, n) # Z-normalize distances
     dist = np.empty(n-m+1)
     dist[:] = m 
     
@@ -243,7 +243,7 @@ def massPreprocessed(query, X, n, m, meanx, sigmax, noise_var=None):
     else:
         dist[sigmax_zero] = 0
 
-    return np.sqrt(np.absolute(dist))
+    return np.absolute(dist)
 
 def massStomp(query,ts,dot_first,dot_prev,index,mean,std):
     """
