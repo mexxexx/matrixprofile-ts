@@ -44,7 +44,7 @@ def naiveDistanceProfile(tsA,idx,m,tsB = None):
     return (dp,np.full(n-m+1,idx,dtype=float))
 
 
-def massDistanceProfile(tsA,idx,m,tsB = None):
+def massDistanceProfile(tsA, idx, m, tsB = None, noise_var = None):
     """
     Returns the distance profile of a query within tsA against the time series tsB using the more efficient MASS comparison.
 
@@ -54,6 +54,7 @@ def massDistanceProfile(tsA,idx,m,tsB = None):
     idx: Starting location of the query within tsA
     m: Length of query.
     tsB: Time series to compare the query against. Note that, if no value is provided, tsB = tsA by default.
+    noise_var: Variance of the gaussian noise overlying the signal. If no value is passed, no noise correction is applied
     """
 
     selfJoin = False
@@ -63,7 +64,7 @@ def massDistanceProfile(tsA,idx,m,tsB = None):
 
     query = tsA[idx:(idx+m)]
     n = len(tsB)
-    distanceProfile = np.real(np.sqrt(mass(query,tsB).astype(complex)))
+    distanceProfile = np.real(np.sqrt(mass(query,tsB, noise_var).astype(complex)))
     if selfJoin:
         trivialMatchRange = (int(max(0,idx - np.round(m/2,0))),int(min(idx + np.round(m/2+1,0),n)))
         distanceProfile[trivialMatchRange[0]:trivialMatchRange[1]] = np.inf
@@ -90,7 +91,7 @@ def mass_distance_profile_parallel(indices, tsA=None, tsB=None, m=None):
     return distance_profiles
 
 
-def STOMPDistanceProfile(tsA,idx,m,tsB,dot_first,dp,mean,std):
+def STOMPDistanceProfile(tsA, idx, m, tsB, dot_first, dp, mean, std):
     """
     Returns the distance profile of a query within tsA against the time series tsB using the even more efficient iterative STOMP calculation. Note that the method requires a pre-calculated 'initial' sliding dot product.
 

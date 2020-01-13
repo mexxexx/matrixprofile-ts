@@ -17,33 +17,9 @@ import pytest
 import numpy as np
 
 import matrixprofile
-from matrixprofile import scrimp
+from matrixprofile import scrimp, utils
 
 MODULE_PATH = matrixprofile.__path__[0]
-
-def test_fast_find_nn_pre():
-    """Validate the computations for fast find nn pre."""
-    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
-    m = 4
-
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    assert(n == 8)
-
-    expected_sumx2 = np.array([30, 54, 86, 126, 174])
-    assert((sumx2 == expected_sumx2)).all()
-
-    expected_sumx = np.array([10, 14, 18, 22, 26])
-    assert((sumx == expected_sumx)).all()
-
-    expected_meanx = np.array([2.5, 3.5, 4.5, 5.5, 6.5])
-    assert((meanx == expected_meanx).all())
-
-    expected_sigmax2 = np.array([1.25, 1.25, 1.25, 1.25, 1.25])
-    assert(np.allclose(sigmax2, expected_sigmax2))
-
-    expected_sigmax = np.array([1.118, 1.118, 1.118, 1.118, 1.118])
-    assert(np.allclose(sigmax, expected_sigmax, 1e-02))
-
 
 def test_calc_exclusion_zone():
     assert(scrimp.calc_exclusion_zone(4) == 1)
@@ -126,44 +102,6 @@ def test_next_subsequence():
     expected_subsequence = [1, 2, 3, 4]
     assert((scrimp.next_subsequence(ts, idx, m) == expected_subsequence))
 
-
-def test_calc_distance_profile():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
-    m = 4
-    idx = 0
-
-    expected_dp = np.array([
-        4.21468485e-08,
-        4.21468485e-08,
-        0.00000000e+00,
-        4.21468485e-08,
-        4.21468485e-08
-    ])
-
-    subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
-
-    np.testing.assert_almost_equal(dp, expected_dp)
-
-    # test idx 1
-    idx = 1
-
-    expected_dp = np.array([
-        4.21468485e-08,
-        4.21468485e-08,
-        4.21468485e-08,
-        4.21468485e-08,
-        4.21468485e-08
-    ])
-
-    subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
-
-    np.testing.assert_almost_equal(dp, expected_dp)
-
-
 def test_calc_exclusion_start():
     ts = [1, 2, 3, 4, 5, 6, 7, 8]
     m = 4
@@ -212,7 +150,7 @@ def test_calc_exclusion_stop():
 
 
 def test_apply_exclusion_zone():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
+    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     m = 4
 
     # test index 0
@@ -220,8 +158,8 @@ def test_apply_exclusion_zone():
     profile_len = scrimp.calc_profile_len(len(ts), m)  # 4
     exclusion_zone = scrimp.calc_exclusion_zone(m)  # 1
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
 
     expected_dp = np.array([
@@ -237,7 +175,7 @@ def test_apply_exclusion_zone():
     # test idx 1
     idx = 1
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
 
     expected_dp = np.array([
@@ -253,7 +191,7 @@ def test_apply_exclusion_zone():
     # test idx 2
     idx = 2
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
 
     expected_dp = np.array([
@@ -269,7 +207,7 @@ def test_apply_exclusion_zone():
     # test idx 3
     idx = 3
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
 
     expected_dp = np.array([
@@ -284,7 +222,7 @@ def test_apply_exclusion_zone():
 
 
 def test_find_and_store_nn():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
+    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     m = 4
 
     # test index 0
@@ -292,8 +230,8 @@ def test_find_and_store_nn():
     profile_len = scrimp.calc_profile_len(len(ts), m)
     exclusion_zone = scrimp.calc_exclusion_zone(m)
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
 
     mp = np.zeros(profile_len)
@@ -323,7 +261,7 @@ def test_find_and_store_nn():
     # test index 0
     idx = 1
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
 
     mp, mp_index, idx_nn = scrimp.find_and_store_nn(1, idx, mp, mp_index, dp)
@@ -332,7 +270,7 @@ def test_find_and_store_nn():
 
 
 def test_calc_idx_diff():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
+    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     m = 4
 
     # test index 0
@@ -340,8 +278,8 @@ def test_calc_idx_diff():
     profile_len = scrimp.calc_profile_len(len(ts), m)
     exclusion_zone = scrimp.calc_exclusion_zone(m)
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
 
     mp = np.zeros(profile_len)
@@ -356,7 +294,7 @@ def test_calc_idx_diff():
 
 
 def test_calc_dotproduct_idx():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
+    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     m = 4
 
     # test index 0
@@ -364,8 +302,8 @@ def test_calc_dotproduct_idx():
     profile_len = scrimp.calc_profile_len(len(ts), m)
     exclusion_zone = scrimp.calc_exclusion_zone(m)
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
     mp = np.zeros(profile_len)
     mp_index = np.zeros(profile_len, dtype='int32')
@@ -413,7 +351,7 @@ def test_calc_dotproduct_end_idx():
 
 
 def test_calc_refine_distance_end_idx():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
+    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     m = 4
     step_size = 0.25
 
@@ -422,8 +360,8 @@ def test_calc_refine_distance_end_idx():
     profile_len = scrimp.calc_profile_len(len(ts), m)
     exclusion_zone = scrimp.calc_exclusion_zone(m)
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
     mp = np.zeros(profile_len)
     mp_index = np.zeros(profile_len, dtype='int32')
@@ -453,7 +391,7 @@ def test_calc_begin_idx():
 
 
 def test_calc_dotproduct_begin_idx():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
+    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     m = 4
 
     # test index 0
@@ -470,7 +408,7 @@ def test_calc_dotproduct_begin_idx():
 
 
 def test_calc_refine_distance_begin_idx():
-    ts = [1, 2, 3, 4, 5, 6, 7, 8]
+    ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     m = 4
     step_size = 0.25
 
@@ -479,8 +417,8 @@ def test_calc_refine_distance_begin_idx():
     profile_len = scrimp.calc_profile_len(len(ts), m)
     exclusion_zone = scrimp.calc_exclusion_zone(m)
     subsequence = scrimp.next_subsequence(ts, idx, m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
-    dp = scrimp.calc_distance_profile(X, subsequence, n, m, meanx, sigmax)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
+    dp = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax)
     dp = scrimp.apply_exclusion_zone(idx, exclusion_zone, profile_len, dp)
     mp = np.zeros(profile_len)
     mp_index = np.zeros(profile_len, dtype='int32')
@@ -527,7 +465,7 @@ def test_calc_curdistance():
     # test index 2
     idx = 2
     profile_len = scrimp.calc_profile_len(len(ts), m)
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = scrimp.fast_find_nn_pre(ts, m)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
     curlastz = np.zeros(profile_len)
     curlastz = scrimp.calc_curlastz(ts, m, n, idx, profile_len, curlastz)
 

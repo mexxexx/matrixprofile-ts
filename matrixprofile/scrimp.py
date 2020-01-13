@@ -30,46 +30,7 @@ import warnings
 
 import numpy as np
 
-
-def fast_find_nn_pre(ts, m):
-    n = len(ts)
-    X = np.fft.fft(ts)
-    cum_sumx = np.cumsum(ts)
-    cum_sumx2 = np.cumsum(np.power(ts, 2))
-    sumx = cum_sumx[m-1:n] - np.insert(cum_sumx[0:n-m], 0, 0)
-    sumx2 = cum_sumx2[m-1:n] - np.insert(cum_sumx2[0:n-m], 0, 0)
-    meanx = sumx / m
-    sigmax2 = (sumx2 / m) - np.power(meanx, 2)
-    sigmax = np.sqrt(sigmax2)
-
-    return (X, n, sumx2, sumx, meanx, sigmax2, sigmax)
-
-
-def calc_distance_profile(X, y, n, m, meanx, sigmax):
-    # reverse the query
-    y = np.flip(y, 0)
-   
-    # make y same size as ts with zero fill
-    y = np.concatenate([y, np.zeros(n-m)])
-
-    # main trick of getting dot product in O(n log n) time
-    Y = np.fft.fft(y)
-    Z = X * Y
-    z = np.fft.ifft(Z)
-
-    # compute y stats in O(n)
-    sumy = np.sum(y)
-    sumy2 = np.sum(np.power(y, 2))
-    meany = sumy / m
-    sigmay2 = sumy2 / m - meany ** 2
-    sigmay = np.sqrt(sigmay2)
-
-    dist = (z[m - 1:n] - m * meanx * meany) / (sigmax * sigmay)
-    dist = m - dist
-    dist = np.real(2 * dist)
-
-    return np.sqrt(np.absolute(dist))
-
+from . import utils
 
 def calc_exclusion_zone(window_size):
     return window_size / 4
@@ -85,7 +46,6 @@ def calc_profile_len(n, window_size):
 
 def next_subsequence(ts, idx, m):
     return ts[idx:idx + m]
-
 
 def calc_exclusion_start(idx, exclusion_zone):
     return int(np.max([0, idx - exclusion_zone]))
@@ -278,7 +238,7 @@ def time_is_exceeded(start_time, runtime):
     return exceeded
 
 
-def scrimp_plus_plus(ts, m, step_size=0.25, runtime=None, random_state=None):
+def scrimp_plus_plus(ts, m, step_size=0.25, runtime=None, random_state=None, noise_var=None):
     """SCRIMP++ is an anytime algorithm that computes the matrix profile for a 
     given time series (ts) over a given window size (m). Essentially, it allows
     for an approximate solution to be provided for quicker analysis. In the 
@@ -355,7 +315,7 @@ def scrimp_plus_plus(ts, m, step_size=0.25, runtime=None, random_state=None):
     matrix_profile = np.zeros(profile_len)
     mp_index = np.zeros(profile_len, dtype='int32')
 
-    X, n, sumx2, sumx, meanx, sigmax2, sigmax = fast_find_nn_pre(ts, m)
+    X, n, meanx, sigmax = utils.preprocess_ts(ts, m)
 
     ###########################
     # PreSCRIMP
@@ -372,8 +332,7 @@ def scrimp_plus_plus(ts, m, step_size=0.25, runtime=None, random_state=None):
         # compute distance profile
         subsequence = next_subsequence(ts, idx, m)
         
-        distance_profile = calc_distance_profile(X, subsequence, n, m, meanx,
-                                                 sigmax)
+        distance_profile = utils.massPreprocessed(subsequence, X, n, m, meanx, sigmax, noise_var)
         
         # apply exclusion zone
         distance_profile = apply_exclusion_zone(

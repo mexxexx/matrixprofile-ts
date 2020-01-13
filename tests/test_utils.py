@@ -143,3 +143,54 @@ class TestClass(object):
         tsB = np.array([1, 2, 3])
 
         assert(is_self_join(tsA, tsB) == True)
+
+    def test_preprocess_ts(self):
+        """Validate the computations for fast find nn pre."""
+        ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+        m = 4
+
+        X, n, meanx, sigmax = preprocess_ts(ts, m)
+        assert(n == 8)
+
+        expected_meanx = np.array([2.5, 3.5, 4.5, 5.5, 6.5])
+        assert((meanx == expected_meanx).all())
+
+        expected_sigmax = np.array([1.118, 1.118, 1.118, 1.118, 1.118])
+        assert(np.allclose(sigmax, expected_sigmax, 1e-02))
+
+    
+    def test_calc_distance_profile(test):
+        ts = np.array([1, 2, 3, 4, 5, 6, 7, 8])
+        m = 4
+        idx = 0
+
+        expected_dp = np.array([
+            4.21468485e-08,
+            4.21468485e-08,
+            0.00000000e+00,
+            4.21468485e-08,
+            4.21468485e-08
+        ])
+
+        subsequence = ts[idx:idx + m]
+        X, n, meanx, sigmax = preprocess_ts(ts, m)
+        dp = massPreprocessed(subsequence, X, n, m, meanx, sigmax)
+
+        np.testing.assert_almost_equal(dp, expected_dp)
+
+        # test idx 1
+        idx = 1
+
+        expected_dp = np.array([
+            4.21468485e-08,
+            4.21468485e-08,
+            4.21468485e-08,
+            4.21468485e-08,
+            4.21468485e-08
+        ])
+
+        subsequence = ts[idx:idx + m]
+        X, n, meanx, sigmax = preprocess_ts(ts, m)
+        dp = massPreprocessed(subsequence, X, n, m, meanx, sigmax)
+
+        np.testing.assert_almost_equal(dp, expected_dp)

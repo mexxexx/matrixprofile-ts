@@ -44,6 +44,12 @@ def zNormalizeEuclidian(tsA,tsB):
 
     return np.linalg.norm(zNormalize(tsA.astype("float64")) - zNormalize(tsB.astype("float64")))
 
+def np_rolling(a, window_size, f):
+    nrows = a.size - window_size + 1
+    n = a.strides[0]
+    a2D = np.lib.stride_tricks.as_strided(a,shape=(nrows, window_size),strides=(n,n))
+    return f(a2D,1)
+
 def movmeanstd(ts,m):
     """
     Calculate the mean and standard deviation within a moving window passing across a time series.
@@ -57,15 +63,9 @@ def movmeanstd(ts,m):
         raise ValueError("Query length must be longer than one")
 
     ts = ts.astype("float")
-    #Add zero to the beginning of the cumsum of ts
-    s = np.insert(np.cumsum(ts),0,0)
-    #Add zero to the beginning of the cumsum of ts ** 2
-    sSq = np.insert(np.cumsum(ts ** 2),0,0)
-    segSum = s[m:] - s[:-m]
-    segSumSq = sSq[m:] -sSq[:-m]
 
-    movmean = segSum/m
-    movstd = np.sqrt(segSumSq / m - (segSum/m) ** 2)
+    movmean = np_rolling(ts, m, np.mean)
+    movstd = np_rolling(ts, m, np.std)
 
     return [movmean,movstd]
 
@@ -82,14 +82,35 @@ def movstd(ts,m):
         raise ValueError("Query length must be longer than one")
 
     ts = ts.astype("float")
-    #Add zero to the beginning of the cumsum of ts
-    s = np.insert(np.cumsum(ts),0,0)
-    #Add zero to the beginning of the cumsum of ts ** 2
-    sSq = np.insert(np.cumsum(ts ** 2),0,0)
-    segSum = s[m:] - s[:-m]
-    segSumSq = sSq[m:] -sSq[:-m]
+    
+    movstd = np_rolling(ts, m, np.std)
 
-    return np.sqrt(segSumSq / m - (segSum/m) ** 2)
+    return movstd
+
+def preprocess_ts(ts, m):
+    """
+    Calculates the FFT of a time series and returns some stats
+
+    Parameters
+    ----------
+    ts: Time series to evaluate.
+    m: Width of the moving window.
+
+    Returns
+    -------
+    X: the FFT
+    n: length of the time series
+    meanx: moving mean
+    sigmax: moving std
+    """
+
+    n = len(ts)
+    X = np.fft.fft(ts)
+
+    meanx = np_rolling(ts, m, np.mean)
+    sigmax = np_rolling(ts, m, np.std)
+
+    return (X, n, meanx, sigmax)
 
 def slidingDotProduct(query,ts):
     """
@@ -156,28 +177,73 @@ def DotProductStomp(ts,m,dot_first,dot_prev,order):
     return dot
 
 
-def mass(query,ts):
+def mass(query, ts, noise_var=None):
     """
     Calculates Mueen's ultra-fast Algorithm for Similarity Search (MASS): a Euclidian distance similarity search algorithm. Note that we are returning the square of MASS.
 
     Parameters
     ----------
-    :query: Time series snippet to evaluate. Note that the query does not have to be a subset of ts.
-    :ts: Time series to compare against query.
+    query: Time series snippet to evaluate. Note that the query does not have to be a subset of ts.
+    ts: Time series to compare against query.
+    noise_var: Variance of Gaussian noise overlying the signal. If no value is passed, no noise correction is applied.
     """
 
     #query_normalized = zNormalize(np.copy(query))
     m = len(query)
+    X, n, meanx, sigmax = preprocess_ts(ts, m)
+
+    res = massPreprocessed(query, X, n, m, meanx, sigmax, noise_var)
+    return res
+
+def massPreprocessed(query, X, n, m, meanx, sigmax, noise_var=None):
+    """ 
+    Returns the distance profile of a query within tsA against the time series tsB using the more efficient MASS comparison, where the time series is already transformed to FFT space.
+    
+    Parameters
+    ----------
+    query: Time series snippet to evaluate. Note that the query does not have to be a subset of ts.
+    X: FFT of time series to compare against query.
+    n: length of time series
+    m: length of query
+    meanx: moving mean of time series
+    sigmax: moving std of time series
+    noise_var: Variance of Gaussian noise overlying the signal. If no value is passed, no noise correction is applied.
+    """
+
     q_mean = np.mean(query)
     q_std = np.std(query)
-    mean, std = movmeanstd(ts,m)
-    dot = slidingDotProduct(query,ts)
 
-    #res = np.sqrt(2*m*(1-(dot-m*mean*q_mean)/(m*std*q_std)))
-    res = 2*m*(1-(dot-m*mean*q_mean)/(m*std*q_std))
+    # reverse the query
+    y = np.flip(query, 0)
+   
+    # make y same size as ts with zero fill
+    y = np.concatenate([y, np.zeros(n-m)])
 
+    # main trick of getting dot product in O(n log n) time
+    Y = np.fft.fft(y)
+    Z = X * Y
+    z = np.fft.ifft(Z) # Z-normalize distances
+    dist = np.empty(n-m+1)
+    dist[:] = m 
+    
+    sigmax_zero = np.isclose(sigmax, 0)
+    sigmax[sigmax_zero] = 1e-10 # avoid divide by 0
 
-    return res
+    # Handling of constant subsequences: No z-Normalization is possible in that case, but we can still shift by the mean. Then the distance squared between a z normalized u and a constant sequence is exactly m (because m = 1/std^2 * dist^2(u - mean)). If both sequences are constant, the distance is zero.
+    if not np.isclose(q_std, 0): 
+        dist = (z[m - 1:n] - m * meanx * q_mean)
+        dist = m - dist / (sigmax * q_std)
+        dist = np.real(2 * dist)
+
+        if not noise_var is None:
+            # Assuming that the signal is disturbed by gaussian noise, De Paepe et al propose a noise canceling algorithm that is implemented here.
+            # For further reference see 'Eliminating Noise in the Matrix Profile' by Dieter De Paepe, Oliver Janssens and Sofie Van Hoecke published in ICPRAM 2019, DOI:10.5220/0007314100830093
+            dist = np.maximum(0, dist - (2 + 2*m) * np.true_divide(noise_var, np.multiply(np.maximum(sigmax, q_std), np.maximum(sigmax, q_std))))
+        dist[sigmax_zero] = m
+    else:
+        dist[sigmax_zero] = 0
+
+    return np.sqrt(np.absolute(dist))
 
 def massStomp(query,ts,dot_first,dot_prev,index,mean,std):
     """
